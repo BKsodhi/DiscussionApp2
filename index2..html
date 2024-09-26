@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discussion App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+
+    header {
+      background-color: #2926c2;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 36px;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: row;
+      height: calc(100vh - 80px);
+    }
+
+    /* Left Pane */
+    .left-pane {
+      width: 30%;
+      padding: 20px;
+      background-color: #f9fafc;
+      border-right: 2px solid #ccc;
+      overflow-y: auto;
+    }
+
+    /* Search Box */
+    #search-box {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    /* Question List Styles */
+    .left-pane ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .left-pane li {
+      padding: 10px;
+      background-color: #fff;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .left-pane li:hover {
+      background-color: #e0f7fa;
+    }
+
+    /* Right Pane */
+    .right-pane {
+      width: 70%;
+      padding: 20px;
+      background-color: #fff;
+      overflow-y: auto;
+    }
+
+    /* Question Form */
+    form {
+      background-color: #f9fafc;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      font-size: 16px;
+      background-color: #fff;
+    }
+
+    button {
+      padding: 10px 20px;
+      background-color: #2926c2;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background-color: #2926c2;
+    }
+
+    /* Response Section */
+    .responses {
+      margin-top: 20px;
+    }
+
+    /* Styles for Response List */
+    #response-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    #response-list li {
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: #f9fafc;
+      border-radius: 5px;
+    }
+
+    .vote-buttons {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 5px;
+    }
+
+    .vote-count {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Discussion Portal</h1>
+  </header>
+  <div class="container">
+    <!-- Left Pane (Contains search box and question list) -->
+    <div class="left-pane">
+      <input type="text" id="search-box" placeholder="Search questions...">
+      <ul id="question-list"></ul>
+    </div>
+
+    <!-- Right Pane (Contains form to submit questions) -->
+    <div class="right-pane">
+      <form id="question-form">
+        <label for="title">Title:</label>
+        <input type="text" id="title" required><br><br>
+        <label for="question">Question:</label>
+        <textarea id="question" required></textarea><br><br>
+        <button type="submit">Submit</button>
+      </form>
+
+      <!-- Display Question Details -->
+      <div id="question-container" style="display: none;">
+        <h2 id="question-title"></h2>
+        <p id="question-text"></p>
+        <button id="resolve-button">Resolve</button>
+      </div>
+
+      <!-- Response Form -->
+      <form id="response-form" style="display: none;">
+        <label for="name">Name:</label>
+        <input type="text" id="name" required>
+        <label for="comment">Comment:</label>
+        <textarea id="comment" required></textarea>
+        <button type="submit">Submit Response</button>
+      </form>
+
+      <!-- Display Previous Answers -->
+      <div class="responses">
+        <h2>Previous Answers:</h2>
+        <ul id="response-list"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const questionForm = document.getElementById('question-form');
+    const questionList = document.getElementById('question-list');
+    const questionContainer = document.getElementById('question-container');
+    const questionTitle = document.getElementById('question-title');
+    const questionText = document.getElementById('question-text');
+    const resolveButton = document.getElementById('resolve-button');
+    const responseForm = document.getElementById('response-form');
+    const responseList = document.getElementById('response-list');
+    const searchBox = document.getElementById('search-box');
+
+    let currentQuestion = null;
+    let questions = []; // Array to store questions
+
+    // Handle question form submission
+    questionForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const question = document.getElementById('question').value;
+
+      // Create a new question object
+      const newQuestion = {
+        title,
+        question,
+        upvotes: 0,
+        downvotes: 0,
+        responses: []
+      };
+
+      // Add the new question to the questions array
+      questions.push(newQuestion);
+
+      // Update the question list display
+      updateQuestionList();
+
+      // Clear the form fields after submission
+      document.getElementById('title').value = '';
+      document.getElementById('question').value = '';
+    });
+
+    // Function to update the question list display
+    function updateQuestionList() {
+      questionList.innerHTML = ''; // Clear the current list
+      // Sort questions based on upvotes (more votes come first)
+      questions.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+      questions.forEach((q, index) => {
+        const questionItem = document.createElement('li');
+        questionItem.innerHTML = `
+          <div class="vote-buttons">
+            <span class="vote-count">${q.upvotes - q.downvotes}</span>
+            <button onclick="voteQuestion(${index}, 'up')">↑</button>
+            <button onclick="voteQuestion(${index}, 'down')">↓</button>
+          </div>
+          ${q.title}: ${q.question}
+        `;
+        questionItem.addEventListener('click', () => {
+          displayQuestion(q, index);
+        });
+        questionList.appendChild(questionItem);
+      });
+    }
+
+    // Function to display the selected question
+    function displayQuestion(question, index) {
+      currentQuestion = question;
+      questionTitle.textContent = question.title;
+      questionText.textContent = question.question;
+      questionContainer.style.display = 'block';
+      responseForm.style.display = 'block';
+      responseList.innerHTML = ''; // Clear previous responses
+      question.responses.forEach(res => {
+        const responseItem = document.createElement('li');
+        responseItem.innerHTML = `
+          <div class="vote-buttons">
+            <span class="vote-count">${res.upvotes - res.downvotes}</span>
+            <button onclick="voteResponse(${index}, ${question.responses.indexOf(res)}, 'up')">↑</button>
+            <button onclick="voteResponse(${index}, ${question.responses.indexOf(res)}, 'down')">↓</button>
+          </div>
+          <strong>${res.name}:</strong> ${res.comment}
+        `;
+        responseList.appendChild(responseItem);
+      });
+    }
+
+    // Handle response form submission
+    responseForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const comment = document.getElementById('comment').value;
+
+      // Create a new response object
+      const newResponse = {
+        name,
+        comment,
+        upvotes: 0,
+        downvotes: 0
+      };
+
+      // Append the new response to the current question
+      currentQuestion.responses.push(newResponse);
+
+      // Clear the form fields after submission
+      document.getElementById('name').value = '';
+      document.getElementById('comment').value = '';
+
+      // Display updated responses
+      displayQuestion(currentQuestion, questions.indexOf(currentQuestion));
+    });
+
+    // Function to handle voting on questions
+    function voteQuestion(index, type) {
+      if (type === 'up') {
+        questions[index].upvotes++;
+      } else {
+        questions[index].downvotes++;
+      }
+      updateQuestionList();
+    }
+
+    // Function to handle voting on responses
+    function voteResponse(questionIndex, responseIndex, type) {
+      if (type === 'up') {
+        questions[questionIndex].responses[responseIndex].upvotes++;
+      } else {
+        questions[questionIndex].responses[responseIndex].downvotes++;
+      }
+      displayQuestion(questions[questionIndex], questionIndex);
+    }
+
+    // Handle resolve button click
+    resolveButton.addEventListener('click', () => {
+      const index = questions.indexOf(currentQuestion);
+      if (index > -1) {
+        questions.splice(index, 1); // Remove the resolved question from the list
+      }
+      currentQuestion = null; // Reset current question
+      questionContainer.style.display = 'none'; // Hide the question container
+      responseForm.style.display = 'none'; // Hide the response form
+      updateQuestionList(); // Refresh the question list
+    });
+
+    // Search functionality
+    searchBox.addEventListener('input', () => {
+      const searchTerm = searchBox.value.toLowerCase();
+      questionList.innerHTML = ''; // Clear current list
+      const filteredQuestions = questions.filter(q => 
+        q.title.toLowerCase().includes(searchTerm) || 
+        q.question.toLowerCase().includes(searchTerm)
+      );
+
+      filteredQuestions.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+      filteredQuestions.forEach((q, index) => {
+        const questionItem = document.createElement('li');
+        questionItem.innerHTML = `
+          <div class="vote-buttons">
+            <span class="vote-count">${q.upvotes - q.downvotes}</span>
+            <button onclick="voteQuestion(${questions.indexOf(q)}, 'up')">↑</button>
+            <button onclick="voteQuestion(${questions.indexOf(q)}, 'down')">↓</button>
+          </div>
+          ${q.title}: ${q.question}
+        `;
+        questionItem.addEventListener('click', () => {
+          displayQuestion(q, questions.indexOf(q));
+        });
+        questionList.appendChild(questionItem);
+      });
+    });
+  </script>
+</body>
+</html>
